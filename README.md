@@ -13,3 +13,4 @@ the markdown viewer
 
 ## Next To do
 - use Oracle GraalVM to build executable file to run everywhere without setup JDK1.8
+- need to add feature to convert markdown to PDF so that the user can view PDF instead of using markdown viewer.
