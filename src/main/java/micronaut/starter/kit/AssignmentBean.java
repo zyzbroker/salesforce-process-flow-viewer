@@ -1,19 +1,20 @@
 package micronaut.starter.kit;
 
+import jdk.nashorn.internal.runtime.regexp.joni.constants.NodeType;
 import org.dom4j.Element;
 import org.dom4j.Node;
 
 public class AssignmentBean {
     public String name;
     public String label;
-
+    public String connector;
     public String toReference;
     public String operator;
     public String value;
 
     public String toString() {
-        return String.format("name:%s label:%s toReference:%s operator:%s value:%s",
-                this.name, this.label, this.toReference, this.operator, this.value);
+        return String.format("name:%s label:%s toReference:%s operator:%s value:%s connector:$s",
+                this.name, this.label, this.toReference, this.operator, this.value, this.connector);
     }
 
     public AssignmentBean(Element el){
@@ -29,6 +30,9 @@ public class AssignmentBean {
                             break;
                         case "assignmentitems":
                             parseAssignItems((Element) nd);
+                            break;
+                        case "connector":
+                            this.connector = NodeHelper.parseValue((Element) nd);
                             break;
                     }
                 });

@@ -11,10 +11,9 @@ public class ActionCallBean {
     public String label;
     public String processName;
     public String processValue;
-
+    public String connector;
     public String actionName;
     public String actionType;
-    public String nextDecision;
     public HashMap<String, String> arguments;
 
     public ActionCallBean(Element el) {
@@ -26,11 +25,11 @@ public class ActionCallBean {
         List<String> buf = new ArrayList<>();
         buf.add(String.format("name:%s", this.name));
         buf.add(String.format("label:%s", this.label));
+        buf.add(String.format("connector:%s", this.connector));
         buf.add(String.format("procName:%s", this.processName));
         buf.add(String.format("procValue:%s", this.processValue));
         buf.add(String.format("actName:%s", this.actionName));
         buf.add(String.format("actType:%s", this.actionType));
-        buf.add(String.format("nextDecision:%s", this.nextDecision));
         this.arguments.keySet().forEach(key-> {
             buf.add(String.format("inputParams:%s:%s", key, this.arguments.get(key)));
         });
@@ -55,7 +54,7 @@ public class ActionCallBean {
                            this.label = n.getStringValue();
                            break;
                        case "connector":
-                           this.nextDecision = NodeHelper.parseValue((Element) n);
+                           this.connector = NodeHelper.parseValue((Element) n);
                            break;
                        case "inputparameters":
                            parseInputParams((Element) n);

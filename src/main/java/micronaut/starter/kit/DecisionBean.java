@@ -2,7 +2,6 @@ package micronaut.starter.kit;
 
 import org.dom4j.Element;
 import org.dom4j.Node;
-import org.dom4j.Text;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -14,7 +13,7 @@ public class DecisionBean {
     public String label;
     public String defaultDecisionName;
     public String nextDecisionName;
-    public List<RuleBean> rules;
+    public RuleBean rules;
 
     public String toString() {
         List<String> buf = new ArrayList<>();
@@ -22,14 +21,11 @@ public class DecisionBean {
         buf.add(String.format("defaultDecision:%s",
                 this.defaultDecisionName));
         buf.add(String.format("nextDecision:%s",this.nextDecisionName));
-        this.rules.forEach(r -> {
-            buf.add(String.format("rule:%s",r.toString()));
-        });
+        buf.add(String.format("[rule]:%s",this.rules.toString()));
         return String.join("\n", buf);
     }
 
     public DecisionBean(Element decision) {
-        this.rules = new ArrayList<RuleBean>();
         this.conditions = new ArrayList<String>();
         for(int i =0; i < decision.nodeCount(); i++) {
             Node n = decision.node(i);
@@ -53,7 +49,6 @@ public class DecisionBean {
     }
 
     private void parseRule(Element rules){
-        RuleBean bn = new RuleBean(rules);
-        this.rules.add(bn);
+        this.rules = new RuleBean(rules);
     }
 }

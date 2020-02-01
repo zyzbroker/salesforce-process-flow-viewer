@@ -21,6 +21,8 @@ public class VariableBean {
     }
 
     public VariableBean(Element el){
+        this.objectType = "";
+
         NodeHelper.getElementNodes(el)
                 .forEach(n -> {
                     final String tag = n.getName().toLowerCase();

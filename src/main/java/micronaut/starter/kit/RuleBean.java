@@ -70,6 +70,6 @@ public class RuleBean {
             }
         }
         if (left.isEmpty()) return;
-        this.conditions.add(String.format("%s %s %s", left, operation, right));
+        this.conditions.add(String.format("%s:%s:%s", left, operation, right));
     }
 }

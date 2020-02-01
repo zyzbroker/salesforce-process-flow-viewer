@@ -24,6 +24,13 @@ public class AssignmentsNode {
         return new ArrayList<AssignmentBean>(this.map.values());
     }
 
+    public AssignmentBean findBean(String key) throws ClassNotFoundException {
+        if (this.map.keySet().contains(key)){
+            return this.map.get(key);
+        }
+        throw new ClassNotFoundException("The assignment with name:" + key + " not found.");
+    }
+
     public void parse(Element el){
         AssignmentBean bn = new AssignmentBean(el);
         this.map.put(bn.name, bn);
