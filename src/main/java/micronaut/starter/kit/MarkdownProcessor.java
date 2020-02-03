@@ -1,5 +1,7 @@
 package micronaut.starter.kit;
 
+import io.micronaut.discovery.$DefaultServiceInstanceIdGeneratorDefinitionClass;
+
 import javax.inject.Inject;
 import java.io.BufferedWriter;
 import java.io.IOException;
@@ -58,7 +60,7 @@ public class MarkdownProcessor {
         markdownEditor.addTable(genProcessVariables());
         markdownEditor.addTitle("Process Flow Execution Detail",2);
         markdownEditor.addPage("The process flow is executed based on the following step sequence.");
-        markdownEditor.addTable(genSteps());
+        this.addSteps();
         return markdownEditor.toString();
     }
 
@@ -68,7 +70,7 @@ public class MarkdownProcessor {
         table.addRow(Arrays.asList(
                 processDefinition.name,
                 processDefinition.description,
-                processDefinition.objectType,
+                keepUnderscoreMark(processDefinition.objectType),
                 processDefinition.triggerType,
                 processDefinition.status));
         return table;
@@ -78,57 +80,67 @@ public class MarkdownProcessor {
         TableBean table = new TableBean();
         table.addHeader(Arrays.asList("Variable","DataType","IsInput","IsOutput","ObjectType","IsCollect"));
             for (VariableBean var : this.variablesNode.values()) {
-                table.addRow(Arrays.asList(var.name,
+                table.addRow(Arrays.asList(keepUnderscoreMark(var.name),
                         var.dataType,
                         String.valueOf(var.isInput),
                         String.valueOf(var.isOutput),
-                        var.objectType,
+                        keepUnderscoreMark(var.objectType),
                         String.valueOf(var.isCollection)));
             }
         return table;
     }
 
-    TableBean genSteps() throws ClassNotFoundException {
-        int step = 1;
-        TableBean table = new TableBean();
-        table.addHeader(Arrays.asList("Step#","Step","Condition","Action","Then"));
-        String decision = this.processDefinition.startDecision;
-        while(decision != null && !decision.isEmpty()){
-            final DecisionRowBean rowBean = genDecisionRow(step, decision);
-            table.addRow(rowBean.row);
-            decision = rowBean.nextDecision;
-            step++;
+    // step mean "decision"
+    void addSteps() throws ClassNotFoundException {
+        int stepSeq = 1;
+        String stepName = this.processDefinition.startDecision;
+        while(!this.isEmpty(stepName)) {
+            final StepRowBean step = genStepRow(stepSeq, stepName);
+            this.addStepHeader(stepSeq, keepUnderscoreMark(step.description));
+            this.addStepDetail(step);
+            stepName = step.nextDecision;
+            stepSeq++;
         }
-        return table;
     }
 
-    DecisionRowBean genDecisionRow(int stepSeq, String decisionName) throws ClassNotFoundException{
-        DecisionBean decision = this.decisionNode.findDecision(decisionName);
-        String stepCol = getStepCol(decision);
-        String conditionCol = getConditionCol(decision);
-        List<String> actionCol = getActionCol(stepSeq, decision);
+    void addStepHeader(int step, String description) {
+        markdownEditor.addTitle(String.format("Step %d: *%s*", step, description), 3);
+    }
+
+    void addStepDetail(StepRowBean stepRow) {
+        final TableBean table = new TableBean();
+        table.addHeader(Arrays.asList("Condition","Action", "Then"));
+        table.addRow(stepRow.row);
+        this.markdownEditor.addTable(table);
+    }
+
+    StepRowBean genStepRow(int stepSeq, String connector) throws ClassNotFoundException{
+        System.out.println("---------genStepRow with decision: " + connector + "---------");
+        DecisionBean decision = this.decisionNode.findDecision(connector);
+        boolean negateFlag = shouldNegateConditionActionLogic(decision);
+        System.out.println("-----Negate:" + String.valueOf(negateFlag) + "-----");
+        String conditionCol = getConditionCol(decision, negateFlag);
+        List<String> actionCol = getActionCol(stepSeq, decision, negateFlag);
         String thenCol = actionCol.get(1);
 
         List<String> row = Arrays.asList(
-                String.valueOf(stepSeq),
-                stepCol,
                 conditionCol,
                 actionCol.get(0),
                 thenCol);
-        return DecisionRowBean.create(row, decision.defaultDecisionName);
+        return StepRowBean.create(row, getStepDetail(decision), negateFlag ? decision.rules.nextDecision : decision.defaultDecisionName);
     }
 
     boolean isEmpty(String obj) {
         return obj == null || obj.isEmpty();
     }
 
-    List<String> getActionCol(int currentStep, DecisionBean decision) throws ClassNotFoundException {
+    List<String> getActionCol(int currentStep, DecisionBean decision, boolean negateFlag) throws ClassNotFoundException {
         if (decision.rules == null) {
             return Arrays.asList("n/a", isEmpty(decision.defaultDecisionName)
                     ? "Exit Process"
                     : String.format("Goto Step %d", currentStep + 1));
         }
-        String connector = decision.rules.nextDecision;
+        String connector = negateFlag ? decision.defaultDecisionName : decision.rules.nextDecision;
 
         if (this.decisionNode.keySet().contains(connector)){
             return Arrays.asList("n/a", String.format("Goto Step %s", currentStep + 1));
@@ -141,33 +153,49 @@ public class MarkdownProcessor {
                 AssignmentBean assignment = this.assignmentsNode.findBean(connector);
                 actions.add(String.format("**Action%d:** *%s* -> *%s* -> *%s*", actionIndex++,assignment.toReference, assignment.operator, getFormulaExpression(assignment.value)));
                 connector = assignment.connector;
-            } else if (this.decisionNode.keySet().contains(connector)){
-                thenWhat = String.format("Goto Step %s", currentStep + 1);
-                break;
             } else if (this.actionCallsNode.keySet().contains(connector)){
                 ActionCallBean actionCall = this.actionCallsNode.findBean(connector);
                 actions.add(String.format("**Action%d:** *%s* -> *%s* -> *%s*",actionIndex++,
                         actionCall.actionType, actionCall.actionName, actionCall.label));
                 connector = actionCall.connector;
+            } else if (this.recordUpdatesNode.keySet().contains(connector)){
+                RecordUpdatesBean recordUpdate = this.recordUpdatesNode.findBean(connector);
+                actions.add(String.format("**UpdateRecord** *%s*", keepUnderscoreMark(recordUpdate.object)));
+                actions.add(String.format("**Action%d**: *%s*", actionIndex++, genRecordUpdateExpression(recordUpdate)));
+                connector = recordUpdate.connector;
+            } else if (this.decisionNode.keySet().contains(connector)){
+                thenWhat = String.format("Goto Step %s", currentStep + 1);
+                break;
             } else {
                 thenWhat = "End of Process";
                 connector = "";
             }
         }
-
-        //find "then"
-
         return Arrays.asList(String.join(" ", actions), thenWhat);
+    }
+
+    String genRecordUpdateExpression(RecordUpdatesBean recordUpdate) {
+        return keepUnderscoreMark(recordUpdate.inputAssignments.keySet()
+                .stream()
+                .map(key -> {
+                    final String val = recordUpdate.inputAssignments.get(key);
+                    if (val.contains("formula")){
+                        return String.format("%s = %s", key, this.getFormulaExpression(val));
+                    }
+                    return String.format("%s = %s", key, val);
+                })
+                .reduce("",(s1,s2) -> s1.isEmpty() ? s2 : String.format("%s %s", s1, s2)));
     }
 
     boolean hasNextAction(String connector){
         if (connector == null || connector.isEmpty()) return false;
         return this.actionCallsNode.keySet().contains(connector)
             || this.recordUpdatesNode.keySet().contains(connector)
-            || this.assignmentsNode.keySet().contains(connector);
+            || this.assignmentsNode.keySet().contains(connector)
+            || this.decisionNode.keySet().contains(connector);
     }
 
-    String getStepCol(DecisionBean decision){
+    String getStepDetail(DecisionBean decision){
         String name = decision.rules == null
                 ? decision.name
                 : decision.rules.label;
@@ -180,23 +208,37 @@ public class MarkdownProcessor {
         return name;
     }
 
-    String getConditionCol(DecisionBean decision) {
+    String getConditionCol(DecisionBean decision, boolean negateFlag) {
         if (decision.rules == null) {
             return "";
         }
+        String logic = decision.rules.conditionLogic.toUpperCase();
         return String.format("**Condition Logic:** *%s* **Conditions:** %s",
-                decision.rules.conditionLogic.toUpperCase(),
+                negateFlag ? String.format("NOT %s", logic) : logic,
                 IntStream.range(0, decision.rules.conditions.size())
                    .mapToObj(i -> String.format("**[%d]:** *%s*",i + 1, parseCondition(decision.rules.conditions.get(i))))
-                    .reduce("", (c1, c2) -> String.format("%s %s", c1, c2))
+                    .reduce("", (c1, c2) -> c1.isEmpty() ? c2 : String.format("%s %s", c1, c2))
                 );
+    }
+
+    boolean shouldNegateConditionActionLogic(DecisionBean decision) {
+        return decision.defaultDecisionName != null
+                && decision.rules != null
+                && decision.rules.nextDecision != null
+                && !this.decisionNode.hasDecision(decision.defaultDecisionName)
+                && this.decisionNode.hasDecision(decision.rules.nextDecision);
+
+    }
+
+    String keepUnderscoreMark(String val){
+        return val.replaceAll("[_]","-");
     }
 
     String parseCondition(String condition) {
         String matchWord = "formula";
         String[] parts = condition.split(":");
         if (parts.length != 3){
-            return String.join(" ", parts).replaceAll("[.]", " . ");
+            return keepUnderscoreMark(String.join(" ", parts).replaceAll("[.]", " . "));
         }
         if (!condition.contains(matchWord)) {
             Matcher match = this.pattern.matcher(parts[0]);
@@ -206,7 +248,7 @@ public class MarkdownProcessor {
             } else if (parts[1].contains("IsNull")) {
                 parts[1]= "IsNull =";
             }
-            return String.join(" ", parts);
+            return keepUnderscoreMark(String.join(" ", parts));
         }
 
         if (parts[0].contains(matchWord)) {
@@ -222,7 +264,7 @@ public class MarkdownProcessor {
         if (parts[2].contains(matchWord)) {
             parts[2] = getFormulaExpression(parts[2]).replaceAll(",",", ");
         }
-        return String.join(" ", parts);
+        return keepUnderscoreMark(String.join(" ", parts));
     }
 
     String getFormulaExpression(String name) {
@@ -233,7 +275,7 @@ public class MarkdownProcessor {
             }
         } catch(ClassNotFoundException ex){
         }
-        return name.replaceAll("[.]"," . ");
+        return name.replaceAll("[.]"," . ").replaceAll("\n","");
     }
 
 }

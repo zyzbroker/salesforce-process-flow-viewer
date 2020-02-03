@@ -21,6 +21,10 @@ public class DecisionsNode {
         this.decisions.put(bn.name, bn);
     }
 
+    public boolean hasDecision(String name) {
+        return this.decisions.containsKey(name);
+    }
+
     public DecisionBean findDecision(String name) throws ClassNotFoundException {
         if (this.decisions.containsKey(name)){
             return this.decisions.get(name);

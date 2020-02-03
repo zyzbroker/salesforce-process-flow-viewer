@@ -35,7 +35,7 @@ public class TableBean {
         for(List<String> row: this.content){
             markdowns.add(String.join(" | ",
                     row.stream()
-                       .map(r->r.replace("|", " "))
+                       .map(r-> r != null ? r.replace("|", " ") : "")
                        .collect(Collectors.toList())));
         }
 

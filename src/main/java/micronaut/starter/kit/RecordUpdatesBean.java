@@ -6,29 +6,35 @@ import org.dom4j.Node;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Optional;
+import java.util.stream.IntStream;
 
 public class RecordUpdatesBean {
     public String name;
     public String label;
     public String object;
-    public String nextDecisionName;
+    public String connector;
     public HashMap<String,String> inputAssignments;
     public HashMap<String,String> metaData;
+
+    public String toMarkdownString() {
+        return this.inputAssignments.keySet()
+            .stream()
+            .map(key -> String.format("%s = %s", key, this.inputAssignments.get(key)))
+            .reduce("",(s1,s2) -> String.format("%s %s", s1, s2));
+    }
 
     public String toString() {
         List<String> buf = new ArrayList<>();
         buf.add(String.format("name:%s label:%s",this.name, this.label));
         buf.add(String.format("object:%s",this.object));
-        buf.add(String.format("nextDecision:%s",this.nextDecisionName));
+        buf.add(String.format("connector:%s",this.connector));
+        buf.add("-----------meta---------------");
         this.metaData.keySet()
             .forEach(key -> {
                     buf.add(String.format("%s:%s",key, this.metaData.get(key)));
             });
-        this.inputAssignments.keySet()
-            .forEach(key->{
-                buf.add(String.format("%s:%s",key, this.inputAssignments.get(key)));
-            });
+        buf.add("----------input------------");
+        buf.add(toMarkdownString());
         return String.join("\n", buf);
     }
 
@@ -50,27 +56,51 @@ public class RecordUpdatesBean {
                     this.label = n.getStringValue();
                     break;
                 case "processmetadatavalues":
-                    this.parseMetaValues((Element) n);
+                    this.parseMetaValues((Element) n, this.metaData);
                     break;
                 case "inputassignments":
                     this.parseInputAssignments((Element) n);
                     break;
                 case "connector":
-                    this.nextDecisionName = NodeHelper.parseValue((Element) n);
+                    this.connector = NodeHelper.parseValue((Element) n);
                     break;
             }
         });
     }
 
-    void parseMetaValues(Element el){
+    void parseMetaValues(Element el, HashMap<String,String> target){
         List<String> nvp = NodeHelper.parseNameValueNodes(el);
         if (nvp.size() != 2) {return;}
-        this.metaData.put(nvp.get(0), nvp.get(1));
+        target.put(nvp.get(0), nvp.get(1));
     }
 
     void parseInputAssignments(Element el){
-       List<String>  nvp = NodeHelper.parseNameValueNodes(el, Optional.of("field"));
-       if (nvp.size() !=2) return;
-       this.inputAssignments.put(nvp.get(0), nvp.get(1));
+        String name = "";
+        String value = "";
+        HashMap<String,String> inputMeta = new HashMap<>();
+        List<Node> nodes = NodeHelper.getElementNodes(el);
+        for(Node nd: nodes)
+        {
+                final String tag = nd.getName().toLowerCase();
+                switch(tag) {
+                    case "field":
+                        name = nd.getStringValue();
+                        break;
+                    case "value":
+                        value = NodeHelper.parseValue((Element) nd);
+                        break;
+                    case "processmetadatavalues":
+                        this.parseMetaValues((Element) nd, inputMeta);
+                        break;
+                }
+            };
+        if (name.isEmpty()) {return;}
+        if (value.isEmpty() && inputMeta.keySet().contains("rightHandSideType")){
+            value = inputMeta.get("rightHandSideType");
+            if (value.equalsIgnoreCase("GlobalConstant")) {
+                value = "Null";
+            }
+        }
+        this.inputAssignments.put(name,value);
     }
 }
