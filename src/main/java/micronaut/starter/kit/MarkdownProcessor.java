@@ -31,10 +31,15 @@ public class MarkdownProcessor {
     private ActionCallsNode actionCallsNode;
     @Inject
     private RecordUpatesNode recordUpdatesNode;
+    @Inject
+    private WaitEventNode waitsNode;
+
+    private HashMap<String, Integer> parsedWaits;
 
     public MarkdownProcessor(ArgumentBean args){
         this.pattern = Pattern.compile("(Rule)*[_0-9]*_myRule_[0-9_]*");
         this.outputFile = args.outFile;
+        this.parsedWaits = new HashMap<String, Integer>();
     }
 
     public String toMarkdownFile() {
@@ -93,12 +98,13 @@ public class MarkdownProcessor {
     // step mean "decision"
     void addSteps() throws ClassNotFoundException {
         int stepSeq = 1;
-        String stepName = this.processDefinition.startDecision;
-        while(!this.isEmpty(stepName)) {
-            final StepRowBean step = genStepRow(stepSeq, stepName);
+        String connector = this.processDefinition.startDecision;
+        while(!this.isEmpty(connector)) {
+            if (this.parsedWaits.keySet().contains(connector)) break;
+            final StepRowBean step = genStepRow(stepSeq, connector);
             this.addStepHeader(stepSeq, keepUnderscoreMark(step.description));
             this.addStepDetail(step);
-            stepName = step.nextDecision;
+            connector = step.nextDecision;
             stepSeq++;
         }
     }
@@ -114,12 +120,57 @@ public class MarkdownProcessor {
         this.markdownEditor.addTable(table);
     }
 
+    StepRowBean genStepRowForWaits(int stepSeq, String waitName) throws ClassNotFoundException {
+        boolean negateFlag = true;
+        this.parsedWaits.put(waitName, stepSeq);
+        WaitEventBean waitEvent = this.waitsNode.findBean(waitName);
+        System.out.println("-----Negate:" + String.valueOf(negateFlag) + "-----");
+        String conditionCol = genConditionColForWait(waitEvent, negateFlag);
+        String actionCol = "n/a";
+        String thenCol = "Exit Of Process";
+        List<String> row = Arrays.asList(
+                conditionCol,
+                actionCol,
+                thenCol
+        );
+        return StepRowBean.create(row, getStepDetail(waitEvent.label) ,waitEvent.connector);
+    }
+
+    StepRowBean genStepRowForAssignments(int stepSeq, String assignName) throws ClassNotFoundException {
+        System.out.println("---------genStepRow With Assignment:" + assignName + "----------");
+        AssignmentBean assign = this.assignmentsNode.findBean(assignName);
+        String conditionCol = "n/a";
+        String actionCol = String.format("**Action1** *%s %s %s*",
+                assign.toReference,
+                assign.operator,
+                assign.value);
+        String thenCol = String.format("Goto Step %d",
+        this.parsedWaits.keySet().contains(assign.connector)
+                ? this.parsedWaits.get(assign.connector)
+                : stepSeq + 1);
+        List<String> row = Arrays.asList(
+                conditionCol,
+                actionCol,
+                thenCol
+        );
+        return StepRowBean.create(row, getStepDetail(assign.label) ,assign.connector);
+    }
+
     StepRowBean genStepRow(int stepSeq, String connector) throws ClassNotFoundException{
-        System.out.println("---------genStepRow with decision: " + connector + "---------");
+        System.out.println("---------genStepRow with decision/waits: " + connector + "---------");
+
+        if (this.waitsNode.hasWait(connector)){
+            return genStepRowForWaits(stepSeq, connector);
+        }
+
+        if (this.assignmentsNode.hasAssignment(connector)){
+            return genStepRowForAssignments(stepSeq, connector);
+        }
+
         DecisionBean decision = this.decisionNode.findDecision(connector);
         boolean negateFlag = shouldNegateConditionActionLogic(decision);
         System.out.println("-----Negate:" + String.valueOf(negateFlag) + "-----");
-        String conditionCol = getConditionCol(decision, negateFlag);
+        String conditionCol = genConditionCol(decision, negateFlag);
         List<String> actionCol = getActionCol(stepSeq, decision, negateFlag);
         String thenCol = actionCol.get(1);
 
@@ -142,9 +193,10 @@ public class MarkdownProcessor {
         }
         String connector = negateFlag ? decision.defaultDecisionName : decision.rules.nextDecision;
 
-        if (this.decisionNode.keySet().contains(connector)){
+        if (this.decisionNode.hasDecision(connector)){
             return Arrays.asList("n/a", String.format("Goto Step %s", currentStep + 1));
         }
+
         int actionIndex = 1;
         String thenWhat = "Exit Of Process";
         List<String> actions = new ArrayList<>();
@@ -156,14 +208,19 @@ public class MarkdownProcessor {
             } else if (this.actionCallsNode.keySet().contains(connector)){
                 ActionCallBean actionCall = this.actionCallsNode.findBean(connector);
                 actions.add(String.format("**Action%d:** *%s* -> *%s* -> *%s*",actionIndex++,
-                        actionCall.actionType, actionCall.actionName, actionCall.label));
+                        actionCall.actionType, keepUnderscoreMark(actionCall.actionName), actionCall.label));
                 connector = actionCall.connector;
             } else if (this.recordUpdatesNode.keySet().contains(connector)){
                 RecordUpdatesBean recordUpdate = this.recordUpdatesNode.findBean(connector);
                 actions.add(String.format("**UpdateRecord** *%s*", keepUnderscoreMark(recordUpdate.object)));
                 actions.add(String.format("**Action%d**: *%s*", actionIndex++, genRecordUpdateExpression(recordUpdate)));
                 connector = recordUpdate.connector;
-            } else if (this.decisionNode.keySet().contains(connector)){
+            } else if (this.waitsNode.hasWait(connector)) {
+                WaitEventBean waitEvent = this.waitsNode.findBean(connector);
+                actions.add(String.format("**Action%d** *%s*", actionIndex++, keepUnderscoreMark(waitEvent.eventName)));
+                connector = "";
+            }
+            else if (this.decisionNode.keySet().contains(connector)){
                 thenWhat = String.format("Goto Step %s", currentStep + 1);
                 break;
             } else {
@@ -195,6 +252,17 @@ public class MarkdownProcessor {
             || this.decisionNode.keySet().contains(connector);
     }
 
+    String getStepDetail(String title){
+        Matcher match = this.pattern.matcher(title);
+        title = match.replaceAll(": ");
+
+        if (!title.contains(" ")) {
+            title = String.join(" ", title.split("(?<!(^|[A-Z]))(?=[A-Z])|(?<!^)(?=[A-Z][a-z])"));
+        }
+        return title.trim();
+    }
+
+
     String getStepDetail(DecisionBean decision){
         String name = decision.rules == null
                 ? decision.name
@@ -208,7 +276,19 @@ public class MarkdownProcessor {
         return name;
     }
 
-    String getConditionCol(DecisionBean decision, boolean negateFlag) {
+    String genConditionColForWait(WaitEventBean waits, boolean negateFlag){
+        if (waits.conditions == null || waits.conditions.isEmpty()) return "daivd zhao";
+        String logic = negateFlag ? "NOT " + waits.conditionLogic.toUpperCase()
+                : waits.conditionLogic.toUpperCase();
+        return String.format("**Condition Logic:** *%s* **Conditions:** %s",
+                logic,
+                IntStream.range(0, waits.conditions.size())
+                .mapToObj(i -> String.format("**[%d]:** *%s*",i + 1, parseCondition(waits.conditions.get(i))))
+                .reduce("",(a1,a2) -> String.format("%s %s",a1,a2))
+                );
+    }
+
+    String genConditionCol(DecisionBean decision, boolean negateFlag) {
         if (decision.rules == null) {
             return "";
         }
@@ -222,12 +302,19 @@ public class MarkdownProcessor {
     }
 
     boolean shouldNegateConditionActionLogic(DecisionBean decision) {
-        return decision.defaultDecisionName != null
-                && decision.rules != null
+        if (decision.defaultDecisionName == null) {
+            if (decision.rules != null
                 && decision.rules.nextDecision != null
-                && !this.decisionNode.hasDecision(decision.defaultDecisionName)
-                && this.decisionNode.hasDecision(decision.rules.nextDecision);
-
+                && this.decisionNode.hasDecision(decision.rules.nextDecision)){
+                return true;
+            }
+            return false;
+        }
+        return decision.defaultDecisionName != null
+                    && decision.rules != null
+                    && decision.rules.nextDecision != null
+                    && !this.decisionNode.hasDecision(decision.defaultDecisionName)
+                    && this.decisionNode.hasDecision(decision.rules.nextDecision);
     }
 
     String keepUnderscoreMark(String val){

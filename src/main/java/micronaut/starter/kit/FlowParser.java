@@ -29,6 +29,8 @@ public class FlowParser {
     private ActionCallsNode actionCallsNode;
     @Inject
     private RecordUpatesNode recordUpdatesNode;
+    @Inject
+    private WaitEventNode waitsNode;
 
     public void parse(String metaXmlFile) throws DocumentException
     {
@@ -60,18 +62,16 @@ public class FlowParser {
                 case "recordupdates":
                     this.recordUpdatesNode.parse(n);
                     break;
+                case "waits":
+                    this.waitsNode.parse(n);
+                    break;
             }
         }
 
         System.out.println("----------process def------------");
         System.out.println(processDefinition.toString());
 
-        System.out.println("\n--------decision nodes---------");
-        decisionNode.values()
-                .forEach(nm -> {
-                    System.out.println(nm.toString());
-                    System.out.println("-----------------------------------");
-                });
+
         System.out.println("\n--------- formulas---------");
         formulasNode.values()
                 .forEach(f -> {
@@ -102,5 +102,18 @@ public class FlowParser {
             System.out.println(r.toString());
             System.out.println("-----------------------------------");
         });
+
+        System.out.println("\n---------waits-------------------");
+        waitsNode.values().forEach(w -> {
+            System.out.println(w.toString());
+            System.out.println("-----------------------------------");
+        });
+
+        System.out.println("\n--------decision nodes---------");
+        decisionNode.values()
+                .forEach(nm -> {
+                    System.out.println(nm.toString());
+                    System.out.println("-----------------------------------");
+                });
     }
 }
