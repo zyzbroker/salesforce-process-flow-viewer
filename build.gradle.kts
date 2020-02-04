@@ -36,6 +36,7 @@ dependencies {
     testAnnotationProcessor("io.micronaut:micronaut-inject-java:1.3.0.RC1")
     testImplementation("io.micronaut.test:micronaut-test-junit5:1.1.2")
     //testImplementation("org.mockito:mockito-junit-jupiter:2.22.0")
+    compileOnly("org.graalvm.nativeimage:svm:19.3.1")
 }
 
 application {

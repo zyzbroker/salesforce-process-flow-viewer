@@ -38,7 +38,7 @@ public class MarkdownProcessor {
 
     public MarkdownProcessor(ArgumentBean args){
         this.pattern = Pattern.compile("(Rule)*[_0-9]*_myRule_[0-9_]*");
-        this.outputFile = args.outFile;
+        this.outputFile = args.getOutFile();
         this.parsedWaits = new HashMap<String, Integer>();
     }
 

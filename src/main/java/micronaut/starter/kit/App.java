@@ -16,7 +16,7 @@ public class App {
         MarkdownProcessor markdownProcessor = ctx.getBean(MarkdownProcessor.class);
         try {
             // step 1: parse input xml file to markdown string
-            flowParser.parse(argument.inPath + "/" + argument.inFile);
+            flowParser.parse(argument.getInputFile());
             // step 2: generate markdown content
             String markdownContent = markdownProcessor.toMarkdownFile();
             //step 3 convert to pdf
