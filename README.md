@@ -11,34 +11,20 @@ the markdown viewer
 ## How to run it
 
 - setup JAVA_HOME
-- ./gradlew run "-f:{your process flow xml file} -o:{full path of output markdown file} -p:{absolute path where you store your process flow xml file}"
+- unzip distributions/process-viewer-shadow.zip
+- go to unzipped folder
+- run the following terminal script
 
 ```zsh
-    //open terminal and issue the following command
-    ./r.sh "Account_Process.flow"
+   java -jar libs/process-viewer-all.jar -f:{yourProcess.flow} -o:{yourOutput.md}
 ```
 
-### r.sh
-
-```zsh
-
-    #!/bin/zsh
-# Author: @david.zhao
-# Date: 02/04/2020
-
-export FLOW_PATH="/home/davidzhao/resentek/opensource/micronaut-starter-kit/src/main/resources"
-export OUT_PATH="/home/davidzhao/resentek/opensource/micronaut-starter-kit/build"
-
-if (test "$2" != ""); then
-  echo -- ./gradlew run $1 $2 --
-  ./gradlew run --args="-p:$FLOW_PATH -f:$1 -o:$OUT_PATH/$1.md" $2
-else
-  echo -- ./gradlew run $1 -q --
-  ./gradlew run --args="-p:$FLOW_PATH -f:$1 -o:$OUT_PATH/$1.md" -q
-fi
-echo -- end of run --
-
-```
+## PDF manual conversion process
+- install gitbook
+- open terminal run the following commands
+- type "gitbook init"
+- update Summary.md to include your pdf.
+- type "gitbook pdf" and it will generate book.pdf
 
 **Note**: due to the fact that "\_\_" is reserved for emphasis in markdown, thus we have to use "--" to replace it.
 
