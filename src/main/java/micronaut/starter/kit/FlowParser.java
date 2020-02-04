@@ -68,6 +68,10 @@ public class FlowParser {
             }
         }
 
+       dumpParsedItems();
+    }
+
+    void dumpParsedItems(){
         System.out.println("----------process def------------");
         System.out.println(processDefinition.toString());
 

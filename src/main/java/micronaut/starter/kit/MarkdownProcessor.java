@@ -48,16 +48,14 @@ public class MarkdownProcessor {
             markdown = toMarkdown();
             writer.write(markdown);
         }
-        catch(ClassNotFoundException notFound){
-            System.out.println(notFound.getMessage());
-        }
         catch (IOException ex){
             System.out.println(ex.getMessage());
         }
         return markdown;
     }
 
-    public String toMarkdown() throws ClassNotFoundException{
+    public String toMarkdown() {
+
         markdownEditor.addTitle(this.processDefinition.name + " Process Flow Guide", 0);
         markdownEditor.addTable(genPageSummary());
         markdownEditor.addTitle("Process Variable Definition", 2);
@@ -66,6 +64,7 @@ public class MarkdownProcessor {
         markdownEditor.addTitle("Process Flow Execution Detail",2);
         markdownEditor.addPage("The process flow is executed based on the following step sequence.");
         this.addSteps();
+
         return markdownEditor.toString();
     }
 
@@ -96,11 +95,11 @@ public class MarkdownProcessor {
     }
 
     // step mean "decision"
-    void addSteps() throws ClassNotFoundException {
+    void addSteps() {
         int stepSeq = 1;
         String connector = this.processDefinition.startDecision;
         while(!this.isEmpty(connector)) {
-            if (this.parsedWaits.keySet().contains(connector)) break;
+            if (this.parsedWaits.containsKey(connector)) break;
             final StepRowBean step = genStepRow(stepSeq, connector);
             this.addStepHeader(stepSeq, keepUnderscoreMark(step.description));
             this.addStepDetail(step);
@@ -120,11 +119,9 @@ public class MarkdownProcessor {
         this.markdownEditor.addTable(table);
     }
 
-    StepRowBean genStepRowForWaits(int stepSeq, String waitName) throws ClassNotFoundException {
+    StepRowBean genStepRowForWaits(int stepSeq,  WaitEventBean waitEvent) {
         boolean negateFlag = true;
-        this.parsedWaits.put(waitName, stepSeq);
-        WaitEventBean waitEvent = this.waitsNode.findBean(waitName);
-        System.out.println("-----Negate:" + String.valueOf(negateFlag) + "-----");
+        this.parsedWaits.put(waitEvent.name, stepSeq);
         String conditionCol = genConditionColForWait(waitEvent, negateFlag);
         String actionCol = "n/a";
         String thenCol = "Exit Of Process";
@@ -136,16 +133,14 @@ public class MarkdownProcessor {
         return StepRowBean.create(row, getStepDetail(waitEvent.label) ,waitEvent.connector);
     }
 
-    StepRowBean genStepRowForAssignments(int stepSeq, String assignName) throws ClassNotFoundException {
-        System.out.println("---------genStepRow With Assignment:" + assignName + "----------");
-        AssignmentBean assign = this.assignmentsNode.findBean(assignName);
+    StepRowBean genStepRowForAssignments(int stepSeq, AssignmentBean assign) {
         String conditionCol = "n/a";
         String actionCol = String.format("**Action1** *%s %s %s*",
                 assign.toReference,
                 assign.operator,
                 assign.value);
-        String thenCol = String.format("Goto Step %d",
-        this.parsedWaits.keySet().contains(assign.connector)
+        String thenCol = String.format("Goto Step %s",
+        this.parsedWaits.containsKey(assign.connector)
                 ? this.parsedWaits.get(assign.connector)
                 : stepSeq + 1);
         List<String> row = Arrays.asList(
@@ -156,15 +151,14 @@ public class MarkdownProcessor {
         return StepRowBean.create(row, getStepDetail(assign.label) ,assign.connector);
     }
 
-    StepRowBean genStepRow(int stepSeq, String connector) throws ClassNotFoundException{
-        System.out.println("---------genStepRow with decision/waits: " + connector + "---------");
+    StepRowBean genStepRow(int stepSeq, String connector) {
 
         if (this.waitsNode.hasWait(connector)){
-            return genStepRowForWaits(stepSeq, connector);
+            return genStepRowForWaits(stepSeq, this.waitsNode.findBean(connector));
         }
 
         if (this.assignmentsNode.hasAssignment(connector)){
-            return genStepRowForAssignments(stepSeq, connector);
+            return genStepRowForAssignments(stepSeq, this.assignmentsNode.findBean(connector));
         }
 
         DecisionBean decision = this.decisionNode.findDecision(connector);
@@ -185,7 +179,7 @@ public class MarkdownProcessor {
         return obj == null || obj.isEmpty();
     }
 
-    List<String> getActionCol(int currentStep, DecisionBean decision, boolean negateFlag) throws ClassNotFoundException {
+    List<String> getActionCol(int currentStep, DecisionBean decision, boolean negateFlag){
         if (decision.rules == null) {
             return Arrays.asList("n/a", isEmpty(decision.defaultDecisionName)
                     ? "Exit Process"

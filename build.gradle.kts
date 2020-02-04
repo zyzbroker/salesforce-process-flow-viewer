@@ -1,4 +1,4 @@
-//import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 
 plugins {
     //used for generate fat jar (excluding JRE, ie executable jar)
@@ -49,7 +49,7 @@ val test by tasks.getting(Test::class) {
 }
 
 //generate uber/fat jar: comment in when in need
-//tasks.withType<ShadowJar> {
-//    minimize()
-//    mergeServiceFiles()
-//}
+tasks.withType<ShadowJar> {
+    minimize()
+    mergeServiceFiles()
+}

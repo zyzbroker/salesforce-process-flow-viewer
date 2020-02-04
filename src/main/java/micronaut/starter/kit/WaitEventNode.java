@@ -34,10 +34,7 @@ public class WaitEventNode {
         return new ArrayList<WaitEventBean>(this.waitEvents.values());
     }
 
-    public WaitEventBean findBean(String key)  throws ClassNotFoundException {
-        if (this.waitEvents.containsKey(key)){
-            return this.waitEvents.get(key);
-        }
-        throw new ClassNotFoundException("The WaitEvent with name:" + key + " not found");
+    public WaitEventBean findBean(String key) {
+        return this.waitEvents.get(key);
     }
 }

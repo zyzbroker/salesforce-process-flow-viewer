@@ -28,11 +28,8 @@ public class AssignmentsNode {
         return this.map.containsKey(key);
     }
 
-    public AssignmentBean findBean(String key) throws ClassNotFoundException {
-        if (this.map.keySet().contains(key)){
-            return this.map.get(key);
-        }
-        throw new ClassNotFoundException("The assignment with name:" + key + " not found.");
+    public AssignmentBean findBean(String key) {
+        return this.map.get(key);
     }
 
     public void parse(Element el){

@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Set;
+import java.util.Optional;
 
 @Singleton
 public class DecisionsNode {
@@ -25,11 +26,8 @@ public class DecisionsNode {
         return this.decisions.containsKey(name);
     }
 
-    public DecisionBean findDecision(String name) throws ClassNotFoundException {
-        if (this.decisions.containsKey(name)){
-            return this.decisions.get(name);
-        }
-        throw new ClassNotFoundException("The decision:" + name + " not found");
+    public DecisionBean findDecision(String name) {
+        return this.decisions.get(name);
     }
 
     public Set<String> keySet() {

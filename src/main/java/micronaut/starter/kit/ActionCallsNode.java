@@ -29,10 +29,7 @@ public class ActionCallsNode {
         return new ArrayList<ActionCallBean>(this.actionCalls.values());
     }
 
-    public ActionCallBean findBean(String key) throws ClassNotFoundException {
-        if (this.actionCalls.containsKey(key)){
-            return this.actionCalls.get(key);
-        }
-        throw new ClassNotFoundException("The Actioncall with name:" + key + " not found.");
+    public ActionCallBean findBean(String key) {
+        return this.actionCalls.get(key);
     }
 }

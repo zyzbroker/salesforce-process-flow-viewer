@@ -29,10 +29,7 @@ public class RecordUpatesNode {
         return new ArrayList<>(this.recordUpdates.values());
     }
 
-    public RecordUpdatesBean findBean(String key) throws ClassNotFoundException{
-        if (this.recordUpdates.containsKey(key)){
-            return this.recordUpdates.get(key);
-        }
-        throw new ClassNotFoundException("The RecordUdpates with name:" + key + " not found");
+    public RecordUpdatesBean findBean(String key){
+        return this.recordUpdates.get(key);
     }
 }
