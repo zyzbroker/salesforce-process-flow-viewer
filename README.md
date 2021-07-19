@@ -8,6 +8,7 @@ the markdown viewer
 - JDK 1.8
 - Micronaut Framework (include Oracle GraalVM native image build support).
 
+
 ## How to run it
 
 - setup JAVA_HOME
@@ -20,6 +21,7 @@ the markdown viewer
 ```
 
 ## PDF manual conversion process
+- install node (must be version 10.*.*). Gitbook pdf ouptput only works on node 10.*.* version.
 - install gitbook
 - open terminal run the following commands
 - type "gitbook init"
